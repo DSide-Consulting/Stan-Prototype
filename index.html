@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stan — Intake Prototype</title>
+<style>
+  :root {
+    --ink:#111827;
+    --ink-2:#374151;
+    --muted:#6B7280;
+    --line:#E5E7EB;
+    --line-2:#F3F4F6;
+    --bg:#F8FAFC;
+    --paper:#FFFFFF;
+    --brand:#2563EB;
+    --brand-soft:#EEF2FF;
+    --brand-deep:#1D4ED8;
+    --good:#16A34A;
+    --good-soft:#DCFCE7;
+    --warn:#B45309;
+    --warn-soft:#FEF3C7;
+    --bad:#B91C1C;
+    --bad-soft:#FEE2E2;
+    --shadow: 0 8px 24px rgba(17,24,39,.08), 0 2px 6px rgba(17,24,39,.05);
+    --shadow-phone: 0 30px 60px rgba(15,23,42,.45), 0 10px 20px rgba(15,23,42,.30);
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+    min-height:100vh;
+    color: var(--ink);
+    display:flex; flex-direction:column; align-items:center;
+    padding: 24px 16px 60px;
+  }
+  .stage-label {
+    color:#cbd5e1; font-size:13px; letter-spacing:.08em; text-transform:uppercase;
+    margin-bottom: 16px; opacity:.85;
+  }
+  .stage-label b { color:white; }
+
+  /* Phone frame */
+  .phone {
+    width: 390px; max-width: 100%;
+    height: 820px;
+    background: var(--paper);
+    border-radius: 44px;
+    box-shadow: var(--shadow-phone);
+    overflow: hidden;
+    position: relative;
+    border: 8px solid #0f172a;
+    display:flex; flex-direction:column;
+  }
+  @media (max-width: 480px) {
+    body { padding: 0; background: white; }
+    .stage-label { display:none; }
+    .phone { width:100vw; height:100vh; border-radius:0; border:0; box-shadow:none; }
+  }
+
+  /* Status bar */
+  .statusbar {
+    height: 44px; flex-shrink:0;
+    background: var(--paper);
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 22px;
+    font-size: 13px; font-weight:600; color: var(--ink);
+  }
+  .statusbar .icons { display:flex; gap:6px; opacity:.85; }
+
+  /* App chrome */
+  .topbar {
+    flex-shrink:0;
+    padding: 6px 18px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .brand {
+    display:flex; align-items:center; gap:8px;
+    font-weight:700; font-size:15px; color: var(--ink); letter-spacing:.2px;
+  }
+  .brand-mark {
+    width:22px; height:22px; border-radius:6px;
+    background: var(--brand);
+    display:flex; align-items:center; justify-content:center;
+    color:white; font-size:11px; font-weight:800; letter-spacing:.5px;
+  }
+  .progress {
+    height: 4px; width: 88px; background: var(--line); border-radius: 999px; overflow:hidden;
+  }
+  .progress > i { display:block; height:100%; background: var(--brand); border-radius:999px; transition: width .35s ease; }
+
+  /* Screen container */
+  .screens { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; position:relative; }
+  .screen {
+    padding: 24px 20px 120px;
+    min-height: 100%;
+    display:none;
+    animation: fade .25s ease-out;
+  }
+  .screen.active { display:block; }
+  @keyframes fade {
+    from { opacity:0; transform: translateY(6px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  h1 { font-size: 26px; line-height: 1.18; font-weight: 700; margin: 0 0 10px; letter-spacing:-0.01em; }
+  h2 { font-size: 19px; line-height: 1.3; font-weight:700; margin: 0 0 8px; }
+  p  { font-size: 15px; line-height: 1.5; color: var(--ink-2); margin: 0 0 12px; }
+  .lead { font-size: 16px; color: var(--ink-2); }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing:.12em; text-transform: uppercase; font-weight:700;
+    color: var(--brand);
+    margin: 0 0 10px;
+  }
+
+  /* Bottom action bar */
+  .actions {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 14px 20px 22px;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, var(--paper) 35%, var(--paper) 100%);
+    display:flex; gap:10px;
+  }
+  button.primary, button.secondary, button.ghost {
+    flex:1;
+    border:0; cursor:pointer;
+    font-family:inherit; font-size:15px; font-weight:600;
+    padding:14px 18px; border-radius:14px;
+    transition: transform .08s ease, background .15s;
+  }
+  button.primary { background: var(--brand); color: white; }
+  button.primary:hover { background: var(--brand-deep); }
+  button.primary:active { transform: scale(.98); }
+  button.primary:disabled { background:#cbd5e1; cursor:not-allowed; }
+  button.secondary { background: var(--brand-soft); color: var(--brand-deep); }
+  button.ghost { background: transparent; color: var(--muted); flex: 0 0 auto; padding: 14px 4px; }
+
+  /* Cards / chips */
+  .card {
+    border:1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--paper);
+    display:flex; gap:12px; align-items:flex-start;
+    cursor:pointer; user-select:none;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  .card + .card { margin-top: 10px; }
+  .card:hover { border-color:#94a3b8; }
+  .card.selected {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.10);
+  }
+  .card .check {
+    width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--line);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--paper);
+  }
+  .card.selected .check {
+    border-color: var(--brand); background: var(--brand);
+    color:white;
+  }
+  .card.selected .check::after {
+    content: "✓"; font-size:13px; font-weight:700;
+  }
+  .card .body { flex:1; }
+  .card .body .title { font-weight:600; font-size:15px; color: var(--ink); }
+  .card .body .sub { font-size:13.5px; color: var(--muted); margin-top:3px; line-height:1.4; }
+
+  /* Chip toggle */
+  .chip-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip {
+    border:1px solid var(--line); padding: 9px 13px; border-radius: 999px;
+    font-size: 13.5px; cursor:pointer; user-select:none;
+    background: var(--paper); color: var(--ink-2);
+    transition: all .12s;
+  }
+  .chip.selected { background: var(--ink); color: white; border-color: var(--ink); }
+
+  /* Toggle list (red-flag) */
+  .toggle-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 4px; border-bottom: 1px solid var(--line-2);
+  }
+  .toggle-row:last-child { border-bottom: 0; }
+  .toggle-row .lbl { font-size:14.5px; color: var(--ink); padding-right:14px; line-height:1.35; }
+  .switch { position:relative; width:44px; height:26px; flex-shrink:0; }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch .slider {
+    position:absolute; inset:0; background: var(--line);
+    border-radius: 999px; cursor:pointer; transition: .15s;
+  }
+  .switch .slider::before {
+    content:""; position:absolute; top:3px; left:3px;
+    width:20px; height:20px; background:white; border-radius:50%;
+    transition: .18s; box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  }
+  .switch input:checked + .slider { background: var(--bad); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+
+  /* NPRS scale */
+  .nprs { display:flex; gap:6px; margin-top:8px; }
+  .nprs .b {
+    flex:1; height:42px; border-radius:10px;
+    border:1px solid var(--line); background: var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:600; cursor:pointer; color: var(--ink-2);
+  }
+  .nprs .b.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-deep); }
+  .nprs-labels { display:flex; justify-content: space-between; font-size:11.5px; color: var(--muted); margin-top: 6px; }
+
+  /* Pill / status */
+  .pill {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 4px 10px; border-radius: 999px; font-size:12px; font-weight:600;
+  }
+  .pill.brand { background: var(--brand-soft); color: var(--brand-deep); }
+  .pill.good  { background: var(--good-soft);  color: var(--good); }
+  .pill.warn  { background: var(--warn-soft);  color: var(--warn); }
+  .pill.bad   { background: var(--bad-soft);   color: var(--bad); }
+  .pill.gray  { background: var(--line-2);     color: var(--ink-2); }
+
+  /* Body diagram */
+  .body-diagram {
+    width: 100%; max-width: 280px; margin: 6px auto 14px; display:block;
+  }
+  .pain-dot {
+    fill: rgba(220,38,38,.6); stroke: #B91C1C; stroke-width: 1.2;
+  }
+  .pain-dot.fade-out { animation: dotfade 1.4s 1.2s forwards; }
+  @keyframes dotfade {
+    from { opacity:1; transform: translate(0,0); }
+    to   { opacity:0; }
+  }
+  .pain-dot.move-up { animation: dotmove 1.4s 1.2s forwards; }
+  @keyframes dotmove {
+    from { transform: translate(0,0); }
+    to   { transform: translate(0,-26px); }
+  }
+
+  /* Provider card */
+  .provider {
+    border:1px solid var(--line); border-radius: 14px; padding: 14px 14px 12px;
+    background: var(--paper); margin-bottom: 10px;
+  }
+  .provider .row1 { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .provider .name { font-weight:700; font-size:15px; }
+  .provider .creds { font-size:12.5px; color:var(--muted); margin-top:1px; }
+  .provider .score-circle {
+    flex-shrink:0;
+    width:46px; height:46px; border-radius:50%;
+    background: var(--brand-soft); color: var(--brand-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:15px;
+  }
+  .provider .meta {
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;
+  }
+  .provider .pill { font-size:11.5px; padding: 3px 9px; }
+  .provider .why { font-size:12.5px; color: var(--ink-2); margin-top:8px; line-height:1.4; }
+
+  /* Plan blocks */
+  .plan-phase {
+    border:1px solid var(--line); border-radius: 14px; padding: 14px;
+    background: var(--paper); margin-bottom:10px;
+  }
+  .plan-phase .ph-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .plan-phase .ph-head .name { font-weight:700; font-size:15px; }
+  .plan-phase ul { margin: 0; padding: 0 0 0 18px; }
+  .plan-phase li { font-size: 14px; color: var(--ink-2); line-height:1.5; margin-bottom: 4px; }
+
+  /* Loading dots */
+  .loading {
+    text-align:center; margin: 60px 0 20px;
+  }
+  .loading .dots span {
+    display:inline-block; width:8px; height:8px; border-radius:50%; background: var(--brand);
+    margin: 0 3px; animation: bounce .9s infinite ease-in-out;
+  }
+  .loading .dots span:nth-child(2) { animation-delay: .15s; }
+  .loading .dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+  .loading p { margin-top: 14px; color: var(--muted); font-size: 14px; }
+
+  /* Big result block */
+  .result-card {
+    background: linear-gradient(160deg, #1e3a8a 0%, #1d4ed8 100%);
+    color:white; border-radius: 18px; padding: 18px 18px 20px; margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .result-card .label { font-size: 11.5px; letter-spacing:.12em; text-transform:uppercase; opacity:.8; }
+  .result-card .name { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .result-card .conf { margin-top: 10px; font-size: 13.5px; opacity:.92; }
+
+  /* Detail rows */
+  .kv { display:flex; justify-content: space-between; align-items:flex-start; padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+  .kv:last-child { border-bottom: 0; }
+  .kv .k { color: var(--muted); font-size: 13px; }
+  .kv .v { font-size: 13.5px; font-weight:600; color: var(--ink); text-align:right; max-width:60%; }
+
+  /* Misc */
+  .quiet { color: var(--muted); font-size: 13px; }
+  .small { font-size: 12.5px; }
+  .center { text-align:center; }
+  .spacer-12 { height: 12px; }
+  .spacer-20 { height: 20px; }
+  .restart-btn {
+    margin-top: 16px; background: transparent; border:1px solid var(--line);
+    color: var(--ink-2); padding: 10px 14px; border-radius: 10px; font-size: 13px; cursor:pointer;
+  }
+
+  /* Emergency screen styling */
+  .emergency {
+    background: var(--bad-soft); border: 1px solid var(--bad);
+    border-radius: 14px; padding: 16px; margin-bottom: 14px;
+  }
+  .emergency h2 { color: var(--bad); margin-bottom: 6px; }
+  .emergency p { color: var(--ink); }
+
+  /* Footer */
+  .stage-foot {
+    color:#94a3b8; font-size:12px; margin-top:14px; max-width:420px;
+    text-align:center; line-height:1.5;
+  }
+  .stage-foot a { color:#cbd5e1; }
+
+  /* Body region selector for pain map */
+  .pain-map-wrap { background: var(--bg); border-radius:14px; padding:12px; margin-bottom:14px; }
+  .body-clickable { cursor:pointer; transition: fill .12s; fill: rgba(37,99,235,0); stroke: var(--brand); stroke-width:1.2; }
+  .body-clickable.selected { fill: rgba(37,99,235,.45); }
+
+  /* Hidden helper */
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage-label">Stan — interactive prototype  •  <b>tap through to demo</b></div>
+
+<div class="phone" id="phone">
+
+  <!-- Mock status bar -->
+  <div class="statusbar">
+    <span>9:41</span>
+    <span class="icons">●●●●  ●●  ●●</span>
+  </div>
+
+  <!-- App top bar -->
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark">S</span><span>stan</span></div>
+    <div class="progress" aria-hidden="true"><i id="progressBar" style="width:0%"></i></div>
+  </div>
+
+  <!-- Screens -->
+  <div class="screens" id="screens">
+
+    <!-- ===== S0 Welcome ===== -->
+    <section class="screen active" data-step="0">
+      <div style="margin-top:30px"></div>
+      <div class="eyebrow">For lower back pain</div>
+      <h1>Find clarity for your back pain.</h1>
+      <p class="lead">Stan is the diagnostic-clarity layer that's been missing from back-pain care. Built by a physical therapist. Grounded in six evidence-based frameworks.</p>
+      <div style="margin-top:18px; display:flex; flex-direction:column; gap:10px;">
+        <div class="card" style="cursor:default; background: var(--bg); border-color:transparent">
+          <div style="font-size:22px; line-height:1; padding-top:1px">🧭</div>
+          <div class="body">
+            <div class="title">Tell us how it actually feels</div>
+            <div class="sub">A 4-minute conversation, not a generic form.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:default; background: var(--bg); border-color:transparent">
+          <div style="font-size:22px; line-height:1; padding-top:1px">🧠</div>
+          <div class="body">
+            <div class="title">Get classified, not just exercised</div>
+            <div class="sub">McKenzie. Sahrmann. McGill. OMPT. Sarno. Each one is a lens.</div>
+          </div>
+        </div>
+        <div class="card" style="cursor:default; background: var(--bg); border-color:transparent">
+          <div style="font-size:22px; line-height:1; padding-top:1px">🤝</div>
+          <div class="body">
+            <div class="title">Connect with the right specialist</div>
+            <div class="sub">Credential-verified PTs in your area. Concierge handles the rest.</div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="next()">Get started</button>
+      </div>
+    </section>
+
+    <!-- ===== S1 Name ===== -->
+    <section class="screen" data-step="1">
+      <div class="eyebrow">Welcome</div>
+      <h1>What should we call you?</h1>
+      <p>This stays on your device. Nothing is shared until you choose to.</p>
+      <div style="margin-top: 14px;">
+        <input id="nameInput" type="text" placeholder="First name" value="Alex"
+          style="width:100%; padding:14px 16px; font-size:16px; border:1px solid var(--line); border-radius:12px; outline:none; font-family:inherit;"
+          onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'">
+      </div>
+      <p class="quiet" style="margin-top:14px; font-size:12.5px;">By continuing you agree to our Terms and acknowledge the HIPAA Notice of Privacy Practices. Stan provides educational information; it does not replace medical advice.</p>
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S2 Red-flag screen ===== -->
+    <section class="screen" data-step="2">
+      <div class="eyebrow">Safety check  •  takes 30 seconds</div>
+      <h1>Quick safety screen.</h1>
+      <p>A few yes/no items. Toggle on anything that applies.</p>
+
+      <div style="margin-top:8px;">
+        <div class="toggle-row">
+          <span class="lbl">Numbness in the saddle area, or new bowel/bladder change</span>
+          <label class="switch"><input type="checkbox" data-rf="rf01"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="lbl">Significant trauma (fall, accident) preceded the pain</span>
+          <label class="switch"><input type="checkbox" data-rf="rf02"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="lbl">Personal history of cancer</span>
+          <label class="switch"><input type="checkbox" data-rf="rf03"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="lbl">Fever, night sweats, or unexplained weight loss</span>
+          <label class="switch"><input type="checkbox" data-rf="rf04"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="lbl">Currently taking blood thinners (anticoagulants)</span>
+          <label class="switch"><input type="checkbox" data-rf="rf05"><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="lbl">Progressive leg weakness or foot drop</span>
+          <label class="switch"><input type="checkbox" data-rf="rf06"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <p class="quiet" style="margin-top: 14px;">If anything here applies, we'll guide you to the right care immediately — Stan's self-assessment will pause until you've been seen.</p>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" id="rfBtn" onclick="checkRedFlags()">All clear, continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S2b Urgent / Emergency (conditional) ===== -->
+    <section class="screen" data-step="2b">
+      <div class="eyebrow" style="color: var(--bad)">Important</div>
+      <h1>Please pause and get this checked.</h1>
+      <div class="emergency">
+        <h2 id="emergencyTitle">Seek urgent care</h2>
+        <p id="emergencyBody">Based on what you've told us, your symptoms warrant evaluation by a physician before continuing self-management.</p>
+      </div>
+      <p>Stan is a self-assessment platform. It is not a substitute for emergency care.</p>
+      <p class="quiet">When you've been evaluated and have clearance, you can return and resume.</p>
+      <div class="actions">
+        <button class="secondary" onclick="goto(2)">Go back</button>
+        <button class="primary" onclick="goto(3)">Continue anyway (demo)</button>
+      </div>
+    </section>
+
+    <!-- ===== S3 Pain location ===== -->
+    <section class="screen" data-step="3">
+      <div class="eyebrow">Where it hurts</div>
+      <h1>Show me where it hurts.</h1>
+      <p>Tap any region. You can pick more than one.</p>
+
+      <div class="pain-map-wrap">
+        <svg viewBox="0 0 200 360" class="body-diagram" aria-label="Body silhouette">
+          <!-- Body silhouette -->
+          <ellipse cx="100" cy="32" rx="22" ry="26" fill="#E5E7EB"/>
+          <path d="M70 60 Q100 50 130 60 L138 130 L150 200 L140 270 L130 350 L115 350 L108 280 L100 280 L92 280 L85 350 L70 350 L60 270 L50 200 L62 130 Z" fill="#E5E7EB"/>
+          <!-- Clickable regions -->
+          <rect x="65" y="125" width="70" height="55" rx="6" class="body-clickable selected" data-region="lower_back" onclick="toggleRegion(this)"/>
+          <rect x="65" y="70"  width="70" height="55" rx="6" class="body-clickable" data-region="upper_back" onclick="toggleRegion(this)"/>
+          <rect x="55" y="200" width="40" height="60" rx="6" class="body-clickable" data-region="left_buttock" onclick="toggleRegion(this)"/>
+          <rect x="105" y="200" width="40" height="60" rx="6" class="body-clickable" data-region="right_buttock" onclick="toggleRegion(this)"/>
+          <rect x="58" y="265" width="40" height="60" rx="6" class="body-clickable" data-region="left_thigh" onclick="toggleRegion(this)"/>
+          <rect x="105" y="265" width="40" height="60" rx="6" class="body-clickable selected" data-region="right_calf" onclick="toggleRegion(this)"/>
+        </svg>
+        <p class="quiet center" style="margin-top:6px">Tap regions to toggle.</p>
+      </div>
+
+      <div id="paintags" class="chip-list"></div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S4 Mechanical pattern ===== -->
+    <section class="screen" data-step="4">
+      <div class="eyebrow">Pattern</div>
+      <h1>Which sounds most like you?</h1>
+      <p>There's no wrong answer. Pick whichever feels closest.</p>
+
+      <div data-group="pattern" style="margin-top:6px">
+        <div class="card selected" data-value="A" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Movement matters a lot</div>
+            <div class="sub">Some positions clearly help. Others clearly hurt. I can usually tell the difference.</div>
+          </div>
+        </div>
+        <div class="card" data-value="B" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Predictable triggers</div>
+            <div class="sub">Specific movements aggravate it the same way every time. I'm cautious about how I move.</div>
+          </div>
+        </div>
+        <div class="card" data-value="C" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Sitting and bending hurt</div>
+            <div class="sub">Sitting too long, bending forward, or lifting are the worst. Standing and walking help.</div>
+          </div>
+        </div>
+        <div class="card" data-value="D" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Stiff and one-sided</div>
+            <div class="sub">It feels stuck or asymmetric. Hands-on work has helped me before.</div>
+          </div>
+        </div>
+        <div class="card" data-value="E" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">It moves around</div>
+            <div class="sub">It varies day-to-day. Stress, sleep, and mood seem to matter as much as movement.</div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S5 Duration + NPRS ===== -->
+    <section class="screen" data-step="5">
+      <div class="eyebrow">A few quick basics</div>
+      <h1>How long, how bad, and what's it stopping you from doing?</h1>
+
+      <h2 style="margin-top:14px">How long has this episode lasted?</h2>
+      <div class="chip-list" data-group="duration">
+        <div class="chip" data-value="<2w" onclick="pickChip(this)">Under 2 weeks</div>
+        <div class="chip selected" data-value="2-6w" onclick="pickChip(this)">2–6 weeks</div>
+        <div class="chip" data-value="6-12w" onclick="pickChip(this)">6–12 weeks</div>
+        <div class="chip" data-value=">12w" onclick="pickChip(this)">More than 3 months</div>
+      </div>
+
+      <h2 style="margin-top:18px">Pain right now (0–10)?</h2>
+      <div class="nprs" id="nprs"></div>
+      <div class="nprs-labels"><span>No pain</span><span>Worst imaginable</span></div>
+
+      <h2 style="margin-top:18px">What's it interfering with most?</h2>
+      <div class="chip-list" data-group="psfs" data-multi="1">
+        <div class="chip selected" data-value="sit" onclick="pickChip(this, true)">Sitting at work</div>
+        <div class="chip" data-value="lift" onclick="pickChip(this, true)">Lifting groceries</div>
+        <div class="chip selected" data-value="walk" onclick="pickChip(this, true)">Walking distances</div>
+        <div class="chip" data-value="sleep" onclick="pickChip(this, true)">Sleeping through the night</div>
+        <div class="chip" data-value="exercise" onclick="pickChip(this, true)">Exercise / sports</div>
+        <div class="chip" data-value="play" onclick="pickChip(this, true)">Playing with kids</div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S6 Framework selection ===== -->
+    <section class="screen" data-step="6">
+      <div class="eyebrow">Pick your lens</div>
+      <h1>Six clinical lenses.</h1>
+      <p>Choose how you'd like to be assessed. The Optimal Panel runs all five expert frameworks at once and synthesizes them.</p>
+
+      <div data-group="framework" style="margin-top:6px">
+        <div class="card selected" data-value="optimal" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Optimal Panel <span class="pill brand" style="margin-left:4px; vertical-align:1px;">Recommended</span></div>
+            <div class="sub">All five frameworks run together. Stan synthesizes the result and shows where they agree.</div>
+          </div>
+        </div>
+        <div class="card" data-value="mckenzie" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">McKenzie / MDT</div>
+            <div class="sub">Directional preference. Centralization. Often the most actionable for mechanical back pain.</div>
+          </div>
+        </div>
+        <div class="card" data-value="sahrmann" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Sahrmann / MSI</div>
+            <div class="sub">Identifies the movement direction that's repeatedly loading you in a compromised way.</div>
+          </div>
+        </div>
+        <div class="card" data-value="mcgill" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">McGill / Biomechanics</div>
+            <div class="sub">Find the pain trigger. Build stability with the Big 3. Spine hygiene.</div>
+          </div>
+        </div>
+        <div class="card" data-value="ompt" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Manual Therapy / OMPT</div>
+            <div class="sub">For stiffness-dominant presentations and people who do well with hands-on work.</div>
+          </div>
+        </div>
+        <div class="card" data-value="sarno" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">Sarno / TMS-MBS</div>
+            <div class="sub">A parallel lens for when the nervous system is amplifying real, structural inputs.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S7m McGill delta — Seated Compression Test (4 limbs) ===== -->
+    <section class="screen" data-step="7m">
+      <div class="eyebrow">A quick assessment</div>
+      <h1>The McGill Chair Test.</h1>
+      <p>Sit upright on a sturdy chair. Grasp the sides of the seat with both hands. We'll do four short limbs to find your pain trigger.</p>
+
+      <div style="background: var(--bg); border-radius: 14px; padding: 14px; margin: 6px 0 14px;">
+        <p style="margin:0; font-size:14px; color: var(--ink-2)">
+          <b>For each limb:</b> pull on the seat to apply axial compressive load to your spine. Note any pain.
+        </p>
+      </div>
+
+      <h2>1 — Neutral position</h2>
+      <p class="quiet" style="margin-top:-2px">Sit upright. Pull on the seat. Note any pain.</p>
+      <div class="chip-list" data-group="ct_neutral">
+        <div class="chip selected" data-value="none" onclick="pickChip(this)">No pain</div>
+        <div class="chip" data-value="mild" onclick="pickChip(this)">Mild</div>
+        <div class="chip" data-value="moderate" onclick="pickChip(this)">Moderate</div>
+        <div class="chip" data-value="severe" onclick="pickChip(this)">Severe</div>
+      </div>
+
+      <h2 style="margin-top:14px">2 — Slouched (flexion)</h2>
+      <p class="quiet" style="margin-top:-2px">Round your back. Pull on the seat. Note any pain.</p>
+      <div class="chip-list" data-group="ct_flexion">
+        <div class="chip" data-value="none" onclick="pickChip(this)">No pain</div>
+        <div class="chip" data-value="mild" onclick="pickChip(this)">Mild</div>
+        <div class="chip selected" data-value="moderate" onclick="pickChip(this)">Moderate</div>
+        <div class="chip" data-value="severe" onclick="pickChip(this)">Severe</div>
+      </div>
+
+      <h2 style="margin-top:14px">3 — Leaned back (extension)</h2>
+      <p class="quiet" style="margin-top:-2px">Arch your back. Pull on the seat. Note any pain.</p>
+      <div class="chip-list" data-group="ct_extension">
+        <div class="chip selected" data-value="none" onclick="pickChip(this)">No pain</div>
+        <div class="chip" data-value="mild" onclick="pickChip(this)">Mild</div>
+        <div class="chip" data-value="moderate" onclick="pickChip(this)">Moderate</div>
+        <div class="chip" data-value="severe" onclick="pickChip(this)">Severe</div>
+      </div>
+
+      <h2 style="margin-top:14px">4 — Neural overlay</h2>
+      <p class="quiet" style="margin-top:-2px">From slouched, bring your chin to your chest. Any new symptoms in your legs?</p>
+      <div class="chip-list" data-group="ct_neural">
+        <div class="chip selected" data-value="none" onclick="pickChip(this)">None</div>
+        <div class="chip" data-value="reproduced" onclick="pickChip(this)">Symptoms in my leg</div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S7 McKenzie delta — directional preference test ===== -->
+    <section class="screen" data-step="7">
+      <div class="eyebrow">A quick movement test</div>
+      <h1>Try this. Then tell us what changed.</h1>
+      <p>Standing, hands on hips. Slowly arch backward five times — only as far as feels reasonable. Pause. Then look at where your symptoms are now.</p>
+
+      <div style="background: var(--bg); border-radius: 14px; padding: 14px; margin: 6px 0 14px;">
+        <p style="margin:0; font-size:14px; color: var(--ink-2)">
+          <b>What we're looking for:</b> changes in <i>where</i> the pain is, not just whether it's better or worse. Pain moving toward the spine — even if intensity is similar — is a powerful diagnostic signal.
+        </p>
+      </div>
+
+      <h2>How did your symptoms change?</h2>
+      <div data-group="dirpref" style="margin-top:6px">
+        <div class="card selected" data-value="centralized" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">My leg pain decreased — and moved closer to my spine</div>
+            <div class="sub">This is called <b>centralization</b>. It's the strongest signal we look for.</div>
+          </div>
+        </div>
+        <div class="card" data-value="reduced_no_move" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">It got better, but didn't move</div>
+            <div class="sub">A good signal — likely points us in a useful direction.</div>
+          </div>
+        </div>
+        <div class="card" data-value="no_change" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">No clear change</div>
+            <div class="sub">We'll try a different direction next.</div>
+          </div>
+        </div>
+        <div class="card" data-value="worse" onclick="pickCard(this)">
+          <div class="check"></div>
+          <div class="body">
+            <div class="title">It got worse, or my leg felt more involved</div>
+            <div class="sub">Stop. We'd test the opposite direction or rule out a different pattern.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Continue</button>
+      </div>
+    </section>
+
+    <!-- ===== S8 Computing ===== -->
+    <section class="screen" data-step="8">
+      <div class="loading">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <p>Reviewing your answers...</p>
+        <p id="loadingMsg" class="quiet">Matching to frameworks</p>
+      </div>
+      <div id="computingSignals" style="margin-top: 14px; padding: 0 4px;">
+        <!-- Signals populated by JS based on selectedFramework -->
+      </div>
+    </section>
+
+    <!-- ===== S9 Router result ===== -->
+    <section class="screen" data-step="9">
+      <div class="eyebrow">Result</div>
+      <h1>We've routed you to McKenzie MDT.</h1>
+
+      <div class="result-card" style="margin-top: 6px;">
+        <div class="label">Routed advisor</div>
+        <div class="name">McKenzie / MDT</div>
+        <div class="conf">Confidence: <b>High</b>  •  Centralization observed  •  Extension preference</div>
+      </div>
+
+      <h2>What just happened</h2>
+      <p>Your symptoms decreased and moved closer to your spine when you arched backward. That movement of pain — from leg to back — is called <b>centralization</b>. It's one of the most reliable signals in spine care: it predicts good outcomes with directional exercise.</p>
+
+      <div class="card" style="cursor:default; background: var(--bg); border-color:transparent; margin-top: 6px;">
+        <div style="font-size:18px; line-height:1; padding-top:1px">📍</div>
+        <div class="body">
+          <div class="title">Before vs after the test</div>
+          <div class="sub">
+            <svg viewBox="0 0 200 200" class="body-diagram" style="margin: 8px auto 0; max-width:200px;">
+              <!-- Body silhouette -->
+              <ellipse cx="100" cy="22" rx="14" ry="16" fill="#E5E7EB"/>
+              <path d="M75 40 Q100 32 125 40 L131 100 L138 150 L130 195 L122 195 L116 155 L100 155 L84 155 L78 195 L70 195 L62 150 L69 100 Z" fill="#E5E7EB"/>
+              <!-- Pain dots: starting at calf (lower) and lower back -->
+              <circle cx="100" cy="100" r="6" class="pain-dot"/>
+              <circle cx="74"  cy="180" r="5" class="pain-dot fade-out"/>
+              <!-- Labels -->
+              <text x="14"  y="106" font-size="9" fill="#6B7280">back</text>
+              <text x="14"  y="186" font-size="9" fill="#6B7280">calf</text>
+              <text x="146" y="40" font-size="9" fill="#16A34A">After:</text>
+              <text x="146" y="52" font-size="9" fill="#16A34A">central only</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">See your advisor</button>
+      </div>
+    </section>
+
+    <!-- ===== S9m Router result — McGill ===== -->
+    <section class="screen" data-step="9m">
+      <div class="eyebrow">Result</div>
+      <h1>We've routed you to McGill / Biomechanics.</h1>
+
+      <div class="result-card" style="margin-top: 6px; background: linear-gradient(160deg, #065f46 0%, #047857 100%);">
+        <div class="label">Routed advisor</div>
+        <div class="name">McGill / Biomechanics</div>
+        <div class="conf">Confidence: <b>High</b>  •  Flexion-intolerant  •  Discogenic pattern</div>
+      </div>
+
+      <h2>What just happened</h2>
+      <p>Your pain spiked when you slouched and pulled on the seat — that's the McGill <b>flexion-intolerance</b> signal. Combined with your sit-worse / walk-better pattern, this fits a <b>discogenic</b> presentation. The chair test isolates the trigger; we now know what to avoid and what to train.</p>
+
+      <div class="card" style="cursor:default; background: var(--bg); border-color:transparent; margin-top: 6px;">
+        <div style="font-size:18px; line-height:1; padding-top:1px">🪑</div>
+        <div class="body">
+          <div class="title">Chair test summary</div>
+          <div class="sub">
+            <div style="margin-top:6px">
+              <div class="kv"><span class="k">Neutral compression</span><span class="v" style="color: var(--good)">No pain ✓</span></div>
+              <div class="kv"><span class="k">Slouched + compression</span><span class="v" style="color: var(--bad)">Moderate ↑</span></div>
+              <div class="kv"><span class="k">Leaned-back + compression</span><span class="v" style="color: var(--good)">No pain ✓</span></div>
+              <div class="kv"><span class="k">Neural overlay</span><span class="v" style="color: var(--good)">Negative ✓</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">See your advisor</button>
+      </div>
+    </section>
+
+    <!-- ===== S10m Advisor view — McGill ===== -->
+    <section class="screen" data-step="10m">
+      <div class="eyebrow">Your advisor</div>
+      <h1>McGill / Biomechanics</h1>
+      <p>Stuart McGill's framework finds the specific load the spine doesn't tolerate, eliminates that trigger, and builds stability around it. Based on your chair test, you have a clear, actionable pattern.</p>
+
+      <div style="background: var(--good-soft); border-radius:14px; padding:14px; margin: 8px 0 14px;">
+        <div class="pill good" style="margin-bottom:6px">Discogenic pattern  •  Flexion-intolerant</div>
+        <div style="font-size:14.5px; color: var(--ink); line-height:1.45;">
+          Your pain is reproducibly triggered by spinal flexion under load — slouching, sitting, bending, lifting with rounded back. The treatment is the inverse: eliminate the trigger, build stability with the Big 3, restore tolerance to load over weeks.
+        </div>
+      </div>
+
+      <h2>Named pain trigger</h2>
+      <p style="margin-top:0; padding: 10px 14px; background: var(--bad-soft); border-radius: 10px; font-size:14px;">
+        <b>Slouched sitting under load</b> — chair test, limb 2. This is what you avoid. Spine hygiene is built around it.
+      </p>
+
+      <h2 style="margin-top:14px">Spine hygiene rules</h2>
+      <ul style="margin-top:6px; padding-left:18px;">
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2);"><b>Sneeze brace.</b> Brace your core before sneezing or coughing. Don't take a sneeze in flexion.</li>
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2); margin-top:6px"><b>Hip-hinge for lifts.</b> Anything off the floor is a hip-hinge, not a back-bend. Knees bend; spine stays neutral.</li>
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2); margin-top:6px"><b>Neutral-spine sit.</b> No prolonged slouching. Lumbar support, breaks every 30 minutes.</li>
+      </ul>
+
+      <h2 style="margin-top:14px;">Precautions</h2>
+      <div class="chip-list">
+        <span class="chip" style="cursor:default">No flexion under load</span>
+        <span class="chip" style="cursor:default">No sit-ups or crunches</span>
+        <span class="chip" style="cursor:default">Stop if leg symptoms appear</span>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Build my plan</button>
+      </div>
+    </section>
+
+    <!-- ===== S10 Advisor view — McKenzie ===== -->
+    <section class="screen" data-step="10">
+      <div class="eyebrow">Your advisor</div>
+      <h1>McKenzie MDT</h1>
+      <p>Robin McKenzie's framework classifies most mechanical low-back pain into three categories. Based on your answers, you fit a pattern with very good prognosis.</p>
+
+      <div style="background: var(--good-soft); border-radius:14px; padding:14px; margin: 8px 0 14px;">
+        <div class="pill good" style="margin-bottom:6px">Reducible Derangement</div>
+        <div style="font-size:14.5px; color: var(--ink); line-height:1.45;">
+          The most common mechanical pattern, and the one with the strongest evidence for self-directed care. Centralization tells us the right direction. Repeated end-range loading in that direction is the treatment.
+        </div>
+      </div>
+
+      <h2>What this means for you</h2>
+      <ul style="margin-top:6px; padding-left:18px;">
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2);"><b>Direction matters.</b> Extension-biased movement is what your spine wants right now. Flexion (rounding forward, prolonged sitting) is likely making it worse.</li>
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2); margin-top:6px"><b>Frequency over intensity.</b> Many small doses through the day beat one long session.</li>
+        <li style="font-size:14.5px; line-height:1.55; color: var(--ink-2); margin-top:6px"><b>Watch the signal.</b> If symptoms move farther from your spine during a movement, stop and we'll reassess.</li>
+      </ul>
+
+      <h2 style="margin-top:14px;">Precautions</h2>
+      <div class="chip-list">
+        <span class="chip" style="cursor:default">Avoid prolonged sitting</span>
+        <span class="chip" style="cursor:default">No flexion under load</span>
+        <span class="chip" style="cursor:default">Stop if leg symptoms worsen</span>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Build my plan</button>
+      </div>
+    </section>
+
+    <!-- ===== S11 Plan ===== -->
+    <section class="screen" data-step="11">
+      <div class="eyebrow">Your plan</div>
+      <h1>4 weeks. Daily. Built around your direction.</h1>
+
+      <div class="plan-phase">
+        <div class="ph-head">
+          <div class="name">Phase 1 — Calm</div>
+          <span class="pill brand">This week</span>
+        </div>
+        <ul>
+          <li><b>Prone press-ups</b> — 10 reps, 6× per day</li>
+          <li><b>Extension in standing</b> — 10 reps, every 2 hours</li>
+          <li><b>Sit breaks</b> — stand or walk every 30 minutes at work</li>
+        </ul>
+      </div>
+
+      <div class="plan-phase">
+        <div class="ph-head">
+          <div class="name">Phase 2 — Build</div>
+          <span class="pill gray">Unlocks when ready</span>
+        </div>
+        <ul>
+          <li>Progress press-ups to deeper end-range</li>
+          <li>Extension in lying with sustained holds</li>
+          <li>Walking program ramps up</li>
+        </ul>
+      </div>
+
+      <div class="plan-phase">
+        <div class="ph-head">
+          <div class="name">Phase 3 — Load</div>
+          <span class="pill gray">Week 3+</span>
+        </div>
+        <ul>
+          <li>Reintroduce flexion gradually under control</li>
+          <li>Re-test for direction and durability</li>
+          <li>Return-to-activity benchmarks</li>
+        </ul>
+      </div>
+
+      <h2 style="margin-top:14px;">We'll check in</h2>
+      <p>You'll log a quick before/after pain rating each session. Stan watches for centralization (good) and peripheralization (stop). Your plan will adjust automatically.</p>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Find a McKenzie PT near me</button>
+      </div>
+    </section>
+
+    <!-- ===== S12 Finder ===== -->
+    <section class="screen" data-step="12">
+      <div class="eyebrow">Specialist match</div>
+      <h1>Three credential-verified specialists near you.</h1>
+      <p>Each one is scored against your routed framework, location, modality, and preferences. We don't show anyone we haven't verified at the source.</p>
+
+      <div class="provider">
+        <div class="row1">
+          <div>
+            <div class="name">Sarah Chen, PT, DPT</div>
+            <div class="creds">Cert. MDT  •  McKenzie Institute USA verified</div>
+          </div>
+          <div class="score-circle">92</div>
+        </div>
+        <div class="meta">
+          <span class="pill good">1.2 mi</span>
+          <span class="pill brand">Stan PRO Partner</span>
+          <span class="pill gray">Telehealth</span>
+          <span class="pill gray">In-network: BCBS, Aetna</span>
+        </div>
+        <div class="why">
+          <b>Why this match:</b> Cert. MDT is the credential most aligned with your routed framework. Within 2 miles. Available within 5 days.
+        </div>
+      </div>
+
+      <div class="provider">
+        <div class="row1">
+          <div>
+            <div class="name">Marcus Rivera, PT, DPT</div>
+            <div class="creds">Dip. MDT  •  McKenzie Institute USA verified</div>
+          </div>
+          <div class="score-circle">88</div>
+        </div>
+        <div class="meta">
+          <span class="pill good">3.4 mi</span>
+          <span class="pill gray">Cash-pay</span>
+          <span class="pill gray">FAAOMPT also</span>
+        </div>
+        <div class="why">
+          <b>Why this match:</b> Diploma-level MDT credentialing, plus manual-therapy depth as a secondary lens. Slightly farther; cash-pay only.
+        </div>
+      </div>
+
+      <div class="provider">
+        <div class="row1">
+          <div>
+            <div class="name">Priya Patel, PT, DPT</div>
+            <div class="creds">Cert. MDT  •  McKenzie Institute USA verified</div>
+          </div>
+          <div class="score-circle">84</div>
+        </div>
+        <div class="meta">
+          <span class="pill good">5.1 mi</span>
+          <span class="pill warn">Sliding scale</span>
+          <span class="pill gray">Spanish, English</span>
+        </div>
+        <div class="why">
+          <b>Why this match:</b> Sliding-scale practice; bilingual; Cert. MDT. Best fit if cost is a factor.
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" onclick="prev()">Back</button>
+        <button class="primary" onclick="next()">Request appointment</button>
+      </div>
+    </section>
+
+    <!-- ===== S13 Concierge confirmation ===== -->
+    <section class="screen" data-step="13">
+      <div class="eyebrow">Concierge</div>
+      <h1>You're set.</h1>
+      <p>We've forwarded your request to Sarah Chen's office. A Stan concierge — a clinician — will reach out within 72 hours to confirm your slot, share your routing summary, and walk you through what to expect.</p>
+
+      <div class="card" style="cursor:default; background: var(--bg); border-color:transparent; margin-top: 12px;">
+        <div style="font-size:18px; line-height:1; padding-top:1px">⏱</div>
+        <div class="body">
+          <div class="title">In the meantime</div>
+          <div class="sub">Start Phase 1 today. Prone press-ups, every two hours. Stop if anything moves into your leg. We'll check in tomorrow.</div>
+        </div>
+      </div>
+
+      <div class="card" style="cursor:default; background: var(--bg); border-color:transparent;">
+        <div style="font-size:18px; line-height:1; padding-top:1px">📥</div>
+        <div class="body">
+          <div class="title">We'll send you</div>
+          <div class="sub">A one-page summary of your routing, your plan, and what your PT visit should cover. You can share it with anyone — including the PT you choose.</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top: 14px;">
+        <button class="restart-btn" onclick="restart()">Restart demo</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="stage-foot">
+  Prototype v1.1 — sample answers pre-filled for demo speed. <b>Default path:</b> Optimal Panel → McKenzie centralization. <b>Try McGill:</b> on the framework-selection screen, pick "McGill / Biomechanics" — you'll get a chair-test screen and a discogenic-pattern routing instead. <b>Try the safety branch:</b> toggle any item on the safety screen.
+</div>
+
+<script>
+  // === State machine ===
+  const screens = document.querySelectorAll('.screen');
+  const progressBar = document.getElementById('progressBar');
+  const totalSteps = 13;
+  let currentStep = 0;
+  let selectedFramework = 'optimal';  // captured at step 6
+
+  // Map of which step follows which, given the selected framework.
+  // McGill takes its own branch at 7m → 9m → 10m, then converges back to 11.
+  function nextStepFor(cur) {
+    const fw = selectedFramework;
+    const c = String(cur);
+    if (c === '6')  return fw === 'mcgill' ? '7m' : '7';
+    if (c === '7m') return '8';
+    if (c === '7')  return '8';
+    if (c === '8')  return fw === 'mcgill' ? '9m' : '9';
+    if (c === '9')  return '10';
+    if (c === '9m') return '10m';
+    if (c === '10') return '11';
+    if (c === '10m')return '11';
+    // default: increment numerically
+    const n = parseInt(c) || 0;
+    return String(Math.min(13, n + 1));
+  }
+  function prevStepFor(cur) {
+    const fw = selectedFramework;
+    const c = String(cur);
+    if (c === '7m') return '6';
+    if (c === '9m') return '8';
+    if (c === '10m')return '9m';
+    if (c === '11') return fw === 'mcgill' ? '10m' : '10';
+    if (c === '8')  return fw === 'mcgill' ? '7m' : '7';
+    const n = parseInt(c) || 0;
+    return String(Math.max(0, n - 1));
+  }
+
+  function show(stepKey) {
+    screens.forEach(s => s.classList.remove('active'));
+    let target = document.querySelector(`.screen[data-step="${stepKey}"]`);
+    if (!target) target = document.querySelector('.screen[data-step="0"]');
+    target.classList.add('active');
+    document.getElementById('screens').scrollTop = 0;
+
+    let n = parseInt(stepKey);
+    if (isNaN(n)) n = currentStep;
+    const pct = Math.max(0, Math.min(100, (n / totalSteps) * 100));
+    progressBar.style.width = pct + '%';
+  }
+
+  function goto(step) { currentStep = step; show(String(step)); applyFrameworkAdaptiveCopy(); }
+  function next()    {
+    // Capture framework selection at step 6
+    if (String(currentStep) === '6') {
+      const sel = document.querySelector('[data-group="framework"] .card.selected');
+      if (sel) selectedFramework = sel.dataset.value || 'optimal';
+    }
+    const target = nextStepFor(currentStep);
+    currentStep = isNaN(parseInt(target)) ? target : parseInt(target);
+    show(String(currentStep));
+    applyFrameworkAdaptiveCopy();
+  }
+  function prev() {
+    const target = prevStepFor(currentStep);
+    currentStep = isNaN(parseInt(target)) ? target : parseInt(target);
+    show(String(currentStep));
+    applyFrameworkAdaptiveCopy();
+  }
+
+  // Adapt copy on shared screens (plan, finder) based on selected framework
+  function applyFrameworkAdaptiveCopy() {
+    const planBtn = document.querySelector('.screen[data-step="11"] .actions .primary');
+    if (planBtn) {
+      const labels = {
+        mckenzie: 'Find a McKenzie PT near me',
+        mcgill:   'Find a McGill-Method PT near me',
+        sahrmann: 'Find an MSI-trained PT near me',
+        ompt:     'Find a manual-therapy PT near me',
+        sarno:    'Find an MBS-aligned clinician near me',
+        optimal:  'Find a specialist near me',
+      };
+      planBtn.textContent = labels[selectedFramework] || labels.optimal;
+    }
+  }
+
+  function restart() {
+    document.querySelectorAll('input[type=checkbox][data-rf]').forEach(c => c.checked = false);
+    updateRfButton();
+    selectedFramework = 'optimal';
+    currentStep = 0; show('0');
+  }
+
+  // === Red-flag button label updates live as toggles change ===
+  function updateRfButton() {
+    const checked = Array.from(document.querySelectorAll('input[type=checkbox][data-rf]:checked')).map(c => c.dataset.rf);
+    const btn = document.getElementById('rfBtn');
+    if (!btn) return;
+    if (checked.length === 0) {
+      btn.textContent = 'All clear, continue';
+      btn.style.background = '';
+      return;
+    }
+    if (checked.includes('rf01')) {
+      btn.textContent = 'Get emergency guidance';
+      btn.style.background = 'var(--bad)';
+    } else if (checked.includes('rf06')) {
+      btn.textContent = 'Get urgent-care guidance';
+      btn.style.background = 'var(--bad)';
+    } else {
+      btn.textContent = 'See next steps';
+      btn.style.background = 'var(--warn)';
+    }
+  }
+  document.querySelectorAll('input[type=checkbox][data-rf]').forEach(cb => {
+    cb.addEventListener('change', updateRfButton);
+  });
+
+  // === Red flag check ===
+  function checkRedFlags() {
+    const checked = Array.from(document.querySelectorAll('input[type=checkbox][data-rf]:checked')).map(c => c.dataset.rf);
+    const emergencyTitle = document.getElementById('emergencyTitle');
+    const emergencyBody = document.getElementById('emergencyBody');
+    if (checked.includes('rf01')) {
+      emergencyTitle.textContent = 'Go to an emergency department now.';
+      emergencyBody.textContent = 'Saddle numbness or new bowel/bladder change can indicate cauda equina syndrome — a surgical emergency. Please go to the nearest emergency department.';
+      goto('2b'); return;
+    }
+    if (checked.includes('rf06')) {
+      emergencyTitle.textContent = 'See a clinician within 24 hours.';
+      emergencyBody.textContent = 'Progressive leg weakness or foot drop is a neurological red flag. Stan\'s self-management is on hold until you\'re evaluated.';
+      goto('2b'); return;
+    }
+    if (checked.length > 0) {
+      emergencyTitle.textContent = 'See a clinician within 72 hours.';
+      emergencyBody.textContent = 'One or more of your answers warrants a clinician visit before continuing self-management. We can help you get there — and resume when you have clearance.';
+      goto('2b'); return;
+    }
+    goto(3);
+  }
+
+  // === Region selector on body diagram ===
+  function toggleRegion(el) {
+    el.classList.toggle('selected');
+    renderPainTags();
+  }
+  function renderPainTags() {
+    const selected = Array.from(document.querySelectorAll('.body-clickable.selected')).map(r => r.dataset.region);
+    const labels = {
+      lower_back: 'Lower back',
+      upper_back: 'Upper back',
+      left_buttock: 'Left buttock',
+      right_buttock: 'Right buttock',
+      left_thigh: 'Left thigh',
+      right_calf: 'Right calf',
+    };
+    const wrap = document.getElementById('paintags');
+    if (!wrap) return;
+    wrap.innerHTML = selected.map(s => `<span class="chip selected" style="cursor:default">${labels[s]||s}</span>`).join('') ||
+      '<span class="quiet">Tap regions to select.</span>';
+  }
+  document.addEventListener('DOMContentLoaded', renderPainTags);
+
+  // === Card single-pick groups ===
+  function pickCard(el) {
+    const group = el.parentElement;
+    if (group.dataset.multi) {
+      el.classList.toggle('selected');
+    } else {
+      Array.from(group.children).forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+  }
+  // Chip pickers
+  function pickChip(el, multi) {
+    if (multi) {
+      el.classList.toggle('selected');
+    } else {
+      Array.from(el.parentElement.children).forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+  }
+
+  // === NPRS scale ===
+  (function makeNPRS(){
+    const wrap = document.getElementById('nprs');
+    for (let i=0; i<=10; i++){
+      const b = document.createElement('div');
+      b.className = 'b' + (i===6 ? ' selected' : '');
+      b.textContent = i;
+      b.onclick = () => {
+        wrap.querySelectorAll('.b').forEach(x => x.classList.remove('selected'));
+        b.classList.add('selected');
+      };
+      wrap.appendChild(b);
+    }
+  })();
+
+  // === Auto-advance on the loading screen ===
+  function renderComputingSignals() {
+    const wrap = document.getElementById('computingSignals');
+    if (!wrap) return;
+    if (selectedFramework === 'mcgill') {
+      wrap.innerHTML = `
+        <div class="kv"><span class="k">Safety screen</span><span class="v" style="color: var(--good)">Clear ✓</span></div>
+        <div class="kv"><span class="k">Pattern</span><span class="v">Sit-bend dominant (C)</span></div>
+        <div class="kv"><span class="k">Chair test — slouched</span><span class="v" style="color: var(--bad)">Reproduced ↑</span></div>
+        <div class="kv"><span class="k">Pain pattern</span><span class="v">Discogenic (sit-worse / walk-better)</span></div>
+        <div class="kv"><span class="k">Neural overlay</span><span class="v" style="color: var(--good)">Negative ✓</span></div>
+      `;
+    } else {
+      wrap.innerHTML = `
+        <div class="kv"><span class="k">Safety screen</span><span class="v" style="color: var(--good)">Clear ✓</span></div>
+        <div class="kv"><span class="k">Pattern</span><span class="v">Movement-responsive (A)</span></div>
+        <div class="kv"><span class="k">Centralization</span><span class="v" style="color: var(--good)">Observed ✓</span></div>
+        <div class="kv"><span class="k">Directional preference</span><span class="v">Extension</span></div>
+        <div class="kv"><span class="k">Psychosocial flags</span><span class="v" style="color: var(--good)">None elevated</span></div>
+      `;
+    }
+  }
+
+  const screensEl = document.getElementById('screens');
+  const observer = new MutationObserver(() => {
+    const active = document.querySelector('.screen.active');
+    if (!active) return;
+    if (active.dataset.step === '8') {
+      renderComputingSignals();
+      const msgs = (selectedFramework === 'mcgill')
+        ? ['Matching to frameworks', 'Cross-checking chair-test signal', 'Building your routing decision...']
+        : ['Matching to frameworks', 'Cross-checking centralization signal', 'Building your routing decision...'];
+      let i = 0;
+      const el = document.getElementById('loadingMsg');
+      const timer = setInterval(() => {
+        i++; if (i >= msgs.length) { clearInterval(timer); return; }
+        if (el) el.textContent = msgs[i];
+      }, 700);
+      setTimeout(() => {
+        if (String(currentStep) === '8') {
+          const tgt = nextStepFor(8);
+          currentStep = isNaN(parseInt(tgt)) ? tgt : parseInt(tgt);
+          show(String(currentStep));
+          applyFrameworkAdaptiveCopy();
+        }
+      }, 2400);
+    }
+  });
+  observer.observe(screensEl, { attributes: true, subtree: true, attributeFilter: ['class'] });
+
+  // Init
+  show('0');
+</script>
+</body>
+</html>
